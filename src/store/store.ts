@@ -3,6 +3,7 @@ import { apiSlice } from "../services/apiSlice";
 
 // Import injected API slices so their endpoints are loaded into the store
 import "../services/userApiSlice";
+import "../services/transactionApiSlice";
 
 export const store = configureStore({
   reducer: {

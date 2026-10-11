@@ -40,6 +40,12 @@ export interface BackendCategoriesResponse {
   totalRecords: number;
 }
 
+export interface BackendCategoriesDropdownResult {
+  success: boolean;
+  message: string;
+  data?: Pick<BackendCategoryResponse, "categoryId" | "name" | "type" | "status">[];
+}
+
 export type CategoryType = "income" | "expense";
 
 export interface CategoryQueryParams {
@@ -55,6 +61,87 @@ export interface CreateCategoryRequest {
 
 export interface UpdateCategoryRequest extends CreateCategoryRequest {
   categoryId: string;
+}
+
+export type BackendTransactionType = "INCOME" | "EXPENSE";
+
+export type PaymentMethod =
+  | "Cash"
+  | "UPI"
+  | "Credit Card"
+  | "Debit Card"
+  | "Bank Transfer"
+  | "Other";
+
+export interface BackendTransactionFile {
+  fileId: string;
+  originalName: string;
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+}
+
+export interface BackendTransactionResponse {
+  transactionId: string;
+  amount: number;
+  type: BackendTransactionType;
+  categoryId: string;
+  categoryName: string;
+  description: string | null;
+  transactionDate: string;
+  paymentMethod: PaymentMethod;
+  notes: string | null;
+  files: BackendTransactionFile[];
+}
+
+export interface BackendTransactionsResult {
+  success: boolean;
+  message: string;
+  data?: {
+    transactions: BackendTransactionResponse[];
+    page: number;
+    limit: number;
+    totalRecords: number;
+  };
+}
+
+export interface BackendTransactionResult {
+  success: boolean;
+  message: string;
+  data?: BackendTransactionResponse;
+}
+
+export interface BackendMessageResult {
+  success: boolean;
+  message: string;
+}
+
+export interface TransactionQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  type?: "income" | "expense";
+  categoryId?: string;
+  paymentMethod?: PaymentMethod;
+}
+
+export interface TransactionRequest {
+  type: "income" | "expense";
+  amount: number;
+  categoryId: string;
+  description?: string;
+  transactionDate: string;
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  attachments?: File[];
+}
+
+export interface UpdateTransactionRequest extends TransactionRequest {
+  transactionId: string;
+  deleteFileIds?: string[];
 }
 
 export interface Transaction {

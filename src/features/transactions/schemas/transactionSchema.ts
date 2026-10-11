@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PAYMENT_METHODS } from "@/constants";
+import type { PaymentMethod } from "@/types/api.types";
 
 export const transactionSchema = z.object({
   type: z.enum(["expense", "income"], {
@@ -10,12 +11,19 @@ export const transactionSchema = z.object({
     .positive("Amount must be greater than 0"),
   categoryId: z.string().min(1, "Category is required"),
   description: z.string().optional(),
-  date: z.string().min(1, "Date is required"),
-  paymentMethod: z.enum(PAYMENT_METHODS as [string, ...string[]], {
-    error: "Select a payment method",
-  }),
+  transactionDate: z
+    .string()
+    .min(1, "Date is required")
+    .refine((value) => !Number.isNaN(Date.parse(value)), {
+      message: "Invalid transaction date",
+    }),
+  paymentMethod: z.enum(
+    PAYMENT_METHODS as [PaymentMethod, ...PaymentMethod[]],
+    {
+      error: "Select a payment method",
+    },
+  ),
   notes: z.string().optional(),
-  receiptName: z.string().optional(),
 });
 
 export type TransactionFormData = z.infer<typeof transactionSchema>;

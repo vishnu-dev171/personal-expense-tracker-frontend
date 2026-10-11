@@ -8,6 +8,6 @@ export const apiSlice = createApi({
     baseUrl,
     credentials: "include", // Required for HTTP-only cookies
   }),
-  tagTypes: ["User", "Category"],
+  tagTypes: ["User", "Category", "Transaction"],
   endpoints: () => ({}), // Endpoints will be injected via separate files
 });

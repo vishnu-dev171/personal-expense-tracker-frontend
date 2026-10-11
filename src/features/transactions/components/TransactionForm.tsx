@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import {
@@ -7,83 +8,114 @@ import {
   FormSelect,
   FormTextarea,
   FormDateInput,
-  FormFileUpload,
 } from "@/components/forms/FormFields";
 import { Button } from "@/components/ui/Button";
 import { TRANSACTION_TYPES, PAYMENT_METHODS } from "@/constants";
-import type { Transaction, TransactionType } from "@/types";
+import type { BackendTransactionResponse } from "@/types/api.types";
+import {
+  useCreateTransactionMutation,
+  useUpdateTransactionMutation,
+} from "@/services/transactionApiSlice";
+import { useGetCategoriesDropdownQuery } from "@/services/categoryApiSlice";
+import { ErrorState, LoadingState } from "@/components/feedback/States";
 import {
   transactionSchema,
   type TransactionFormData,
 } from "../schemas/transactionSchema";
-import { useFinance } from "@/app/providers/FinanceProvider";
 import { useToast } from "@/components/feedback/Toast";
 import { toISODate } from "@/utils/format";
 
 interface TransactionFormProps {
-  initialData?: Transaction;
+  initialData?: BackendTransactionResponse;
 }
 
 export function TransactionForm({ initialData }: TransactionFormProps) {
   const navigate = useNavigate();
-  const { categories, addTransaction, updateTransaction } = useFinance();
   const { toast } = useToast();
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const {
+    data: categoryResponse,
+    isLoading: isLoadingCategories,
+    isError: isCategoryError,
+  } = useGetCategoriesDropdownQuery();
+  const [createTransaction, { isLoading: isCreating }] =
+    useCreateTransactionMutation();
+  const [updateTransaction, { isLoading: isUpdating }] =
+    useUpdateTransactionMutation();
+  const categories = categoryResponse?.data ?? [];
   const isEdit = !!initialData;
 
   const {
     control,
     handleSubmit,
+    register,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: initialData
       ? {
-          type: initialData.type,
+          type: initialData.type === "INCOME" ? "income" : "expense",
           amount: initialData.amount,
           categoryId: initialData.categoryId,
-          description: initialData.description,
-          date: initialData.date,
+          description: initialData.description ?? "",
+          transactionDate: initialData.transactionDate.slice(0, 10),
           paymentMethod: initialData.paymentMethod,
-          notes: initialData.notes,
-          receiptName: initialData.receiptName,
+          notes: initialData.notes ?? "",
         }
       : {
           type: "expense",
           amount: undefined,
           categoryId: "",
           description: "",
-          date: toISODate(new Date()),
-          paymentMethod: "UPI" as Transaction["paymentMethod"],
+          transactionDate: toISODate(new Date()),
+          paymentMethod: "UPI",
           notes: "",
-          receiptName: "",
         },
   });
 
   const selectedType = watch("type");
   const availableCategories = categories.filter(
-    (c) => c.type === selectedType && c.status === "active",
+    (category) =>
+      category.type === (selectedType === "income" ? "INCOME" : "EXPENSE") &&
+      category.status === "ACTIVE",
   );
 
-  function onSubmit(data: TransactionFormData) {
-    const payload: Omit<Transaction, "id"> = {
-      amount: data.amount,
+  async function onSubmit(data: TransactionFormData) {
+    const payload = {
       type: data.type,
+      amount: data.amount,
       categoryId: data.categoryId,
-      description: data.description ?? "",
-      date: data.date,
-      paymentMethod: data.paymentMethod as Transaction["paymentMethod"],
+      description: data.description,
+      transactionDate: data.transactionDate,
+      paymentMethod: data.paymentMethod,
       notes: data.notes,
-      receiptName: data.receiptName,
+      attachments,
     };
-    if (isEdit && initialData) {
-      updateTransaction(initialData.id, payload);
-      toast({ title: "Transaction updated", variant: "success" });
-    } else {
-      addTransaction(payload);
-      toast({ title: "Transaction created", variant: "success" });
+
+    try {
+      if (isEdit && initialData) {
+        await updateTransaction({
+          ...payload,
+          transactionId: initialData.transactionId,
+        }).unwrap();
+        toast({ title: "Transaction updated", variant: "success" });
+      } else {
+        await createTransaction(payload).unwrap();
+        toast({ title: "Transaction created", variant: "success" });
+      }
+      navigate("/transactions");
+    } catch {
+      toast({ title: "Unable to save transaction", variant: "error" });
     }
-    navigate("/transactions");
+  }
+
+  if (isLoadingCategories) {
+    return <LoadingState label="Loading categories..." />;
+  }
+
+  if (isCategoryError) {
+    return <ErrorState message="Could not load categories. Please try again." />;
   }
 
   return (
@@ -108,7 +140,7 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
                 <input
                   type="radio"
                   value={t.value}
-                  {...control.register("type")}
+                  {...register("type")}
                   className="sr-only"
                 />
                 {t.label}
@@ -129,7 +161,12 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
             placeholder="0.00"
             min={0}
           />
-          <FormDateInput name="date" control={control} label="Date" required />
+          <FormDateInput
+            name="transactionDate"
+            control={control}
+            label="Date"
+            required
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -140,7 +177,7 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
             required
             placeholder="Select category"
             options={availableCategories.map((c) => ({
-              value: c.id,
+              value: c.categoryId,
               label: c.name,
             }))}
           />
@@ -169,12 +206,48 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
           rows={3}
         />
 
-        <FormFileUpload
-          name="receiptName"
-          control={control}
-          label="Receipt"
-          helperText="Upload a receipt image or document (UI only, no real upload)"
-        />
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          Receipt attachments
+          <input
+            type="file"
+            multiple
+            accept="image/*,application/pdf"
+            disabled={isCreating || isUpdating}
+            onChange={(event) => {
+              const selectedFiles = Array.from(event.target.files ?? []);
+              if (selectedFiles.length > 5) {
+                toast({
+                  title: "You can attach up to 5 files",
+                  variant: "error",
+                });
+                event.target.value = "";
+                setAttachments([]);
+                return;
+              }
+              setAttachments(selectedFiles);
+            }}
+            className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100"
+          />
+          <span className="text-xs font-normal text-slate-400">
+            Up to 5 images or PDF files.
+          </span>
+          {initialData?.files.map((file) => (
+            <span
+              key={file.fileId}
+              className="text-xs font-normal text-slate-500"
+            >
+              Existing: {file.originalName}
+            </span>
+          ))}
+          {attachments.map((file) => (
+            <span
+              key={`${file.name}-${file.lastModified}`}
+              className="text-xs font-normal text-slate-500"
+            >
+              Selected: {file.name}
+            </span>
+          ))}
+        </label>
       </div>
 
       <div className="flex gap-3">
@@ -185,7 +258,10 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
         >
           Cancel
         </Button>
-        <Button type="submit" loading={isSubmitting}>
+        <Button
+          type="submit"
+          loading={isSubmitting || isCreating || isUpdating}
+        >
           {isEdit ? "Update Transaction" : "Create Transaction"}
         </Button>
       </div>

@@ -1,6 +1,7 @@
 import { apiSlice } from "./apiSlice";
 import type {
   BackendCategoriesResult,
+  BackendCategoriesDropdownResult,
   BackendCategoryResponse,
   CategoryQueryParams,
   CreateCategoryRequest,
@@ -11,6 +12,10 @@ const CATEGORY_API_ENDPOINT = import.meta.env.VITE_CATEGORY_API_ENDPOINT;
 
 export const categoryApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
+    getCategoriesDropdown: builder.query<BackendCategoriesDropdownResult, void>({
+      query: () => `${CATEGORY_API_ENDPOINT}/getCategoriesDropdown`,
+      providesTags: [{ type: "Category", id: "LIST" }],
+    }),
     getAllCategories: builder.query<
       BackendCategoriesResult,
       CategoryQueryParams
@@ -83,6 +88,7 @@ export const categoryApiSlice = apiSlice.injectEndpoints({
 });
 
 export const {
+  useGetCategoriesDropdownQuery,
   useGetAllCategoriesQuery,
   useGetCategoryByIdQuery,
   useCreateCategoryMutation,
