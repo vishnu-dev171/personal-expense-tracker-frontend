@@ -26,70 +26,43 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Table } from "@/components/ui/Table";
+import { ErrorState, LoadingState } from "@/components/feedback/States";
 import { useFinance } from "@/app/providers/FinanceProvider";
 import { formatCurrency, formatDate, monthLabel } from "@/utils/format";
-import { budgetProgress } from "@/utils/budget";
+import { budgetProgress, computeBudgetStatus } from "@/utils/budget";
 import { CURRENT_MONTH, CURRENT_YEAR } from "@/constants";
-import type { Transaction, BudgetWithStatus } from "@/types";
+import type {
+  BackendBudgetResponse,
+  BackendTransactionResponse,
+} from "@/types/api.types";
+import { useGetDashboardQuery } from "@/services/dashboardApiSlice";
+import { useGetAllTransactionsQuery } from "@/services/transactionApiSlice";
+import { useGetAllBudgetsQuery } from "@/services/budgetApiSlice";
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { transactions, categories, getCategoryName, currentMonthBudgets } =
-    useFinance();
-
-  const totals = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    for (const t of transactions) {
-      if (t.type === "income") income += t.amount;
-      else expense += t.amount;
-    }
-    return { income, expense, balance: income - expense };
-  }, [transactions]);
-
-  const totalBudget = useMemo(
-    () => currentMonthBudgets.reduce((sum, b) => sum + b.amount, 0),
-    [currentMonthBudgets],
-  );
-
-  const monthlyTrend = useMemo(() => {
-    const map = new Map<
-      string,
-      { month: string; income: number; expense: number }
-    >();
-    for (const t of transactions) {
-      const d = new Date(t.date);
-      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
-      const label = `${monthLabel(d.getMonth() + 1).slice(0, 3)} ${d.getFullYear().toString().slice(2)}`;
-      const entry = map.get(key) ?? { month: label, income: 0, expense: 0 };
-      if (t.type === "income") entry.income += t.amount;
-      else entry.expense += t.amount;
-      map.set(key, entry);
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, v]) => v);
-  }, [transactions]);
-
-  const expenseByCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const t of transactions) {
-      if (t.type !== "expense") continue;
-      const name = getCategoryName(t.categoryId);
-      map.set(name, (map.get(name) ?? 0) + t.amount);
-    }
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [transactions, getCategoryName]);
-
-  const recentTransactions = useMemo(
-    () =>
-      [...transactions]
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, 8),
-    [transactions],
-  );
+  const { categories } = useFinance();
+  const {
+    data: dashboardResponse,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetDashboardQuery();
+  const dashboard = dashboardResponse?.data;
+  const monthlyTrend = dashboard?.monthlyTrend ?? [];
+  const expenseByCategory = dashboard?.expenseByCategory ?? [];
+  const {
+    data: transactionResponse,
+    isLoading: isLoadingTransactions,
+    isError: isTransactionsError,
+  } = useGetAllTransactionsQuery({ page: 1, limit: 10 });
+  const {
+    data: budgetResponse,
+    isLoading: isLoadingBudgets,
+    isError: isBudgetsError,
+  } = useGetAllBudgetsQuery({ page: 1, limit: 10 });
+  const recentTransactions = transactionResponse?.data?.transactions ?? [];
+  const recentBudgets = budgetResponse?.data?.budgets ?? [];
 
   const categoryColors = useMemo(() => {
     const colors: Record<string, string> = {};
@@ -97,42 +70,44 @@ export function DashboardPage() {
     return colors;
   }, [categories]);
 
-  const summaryCards = [
-    {
-      label: "Total Income",
-      value: totals.income,
-      icon: ArrowDownLeft,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-    },
-    {
-      label: "Total Expense",
-      value: totals.expense,
-      icon: ArrowUpRight,
-      color: "text-red-600",
-      bg: "bg-red-50",
-    },
-    {
-      label: "Balance",
-      value: totals.balance,
-      icon: Wallet,
-      color: "text-brand-600",
-      bg: "bg-brand-50",
-    },
-    {
-      label: `${monthLabel(CURRENT_MONTH)} Budget`,
-      value: totalBudget,
-      icon: PiggyBank,
-      color: "text-amber-600",
-      bg: "bg-amber-50",
-    },
-  ];
+  const summaryCards = dashboard
+    ? [
+        {
+          label: "Total Income",
+          value: dashboard.summary.totalIncome,
+          icon: ArrowDownLeft,
+          color: "text-emerald-600",
+          bg: "bg-emerald-50",
+        },
+        {
+          label: "Total Expense",
+          value: dashboard.summary.totalExpense,
+          icon: ArrowUpRight,
+          color: "text-red-600",
+          bg: "bg-red-50",
+        },
+        {
+          label: "Balance",
+          value: dashboard.summary.balance,
+          icon: Wallet,
+          color: "text-brand-600",
+          bg: "bg-brand-50",
+        },
+        {
+          label: `${monthLabel(dashboard.summary.month)} Budget`,
+          value: dashboard.summary.totalBudget,
+          icon: PiggyBank,
+          color: "text-amber-600",
+          bg: "bg-amber-50",
+        },
+      ]
+    : [];
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        description={`Financial overview for ${monthLabel(CURRENT_MONTH)} ${CURRENT_YEAR}`}
+        description={`Financial overview for ${monthLabel(dashboard?.summary.month ?? CURRENT_MONTH)} ${dashboard?.summary.year ?? CURRENT_YEAR}`}
         actions={
           <Button
             leftIcon={<Plus className="h-4 w-4" />}
@@ -143,29 +118,48 @@ export function DashboardPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {summaryCards.map((card) => (
-          <Card key={card.label}>
-            <CardBody>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-400">
-                    {card.label}
-                  </p>
-                  <p className="mt-1 text-xl font-semibold text-slate-800">
-                    {formatCurrency(card.value)}
-                  </p>
+      {isLoading && (
+        <p className="mb-4 text-sm text-slate-500" role="status">
+          Loading dashboard data...
+        </p>
+      )}
+      {isError && (
+        <div
+          className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          role="alert"
+        >
+          <span>Dashboard data could not be loaded.</span>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {dashboard && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {summaryCards.map((card) => (
+            <Card key={card.label}>
+              <CardBody>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-slate-400">
+                      {card.label}
+                    </p>
+                    <p className="mt-1 text-xl font-semibold text-slate-800">
+                      {formatCurrency(card.value)}
+                    </p>
+                  </div>
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.bg}`}
+                  >
+                    <card.icon className={`h-5 w-5 ${card.color}`} />
+                  </div>
                 </div>
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.bg}`}
-                >
-                  <card.icon className={`h-5 w-5 ${card.color}`} />
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        ))}
-      </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
@@ -211,7 +205,9 @@ export function DashboardPage() {
           <CardBody>
             {expenseByCategory.length === 0 ? (
               <p className="py-16 text-center text-sm text-slate-400">
-                No expense data yet
+                {dashboard
+                  ? "No expense data yet"
+                  : "Dashboard data unavailable"}
               </p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
@@ -227,7 +223,7 @@ export function DashboardPage() {
                   >
                     {expenseByCategory.map((entry) => (
                       <Cell
-                        key={entry.name}
+                        key={entry.categoryId}
                         fill={categoryColors[entry.name] ?? "#64748b"}
                       />
                     ))}
@@ -259,101 +255,127 @@ export function DashboardPage() {
               </Button>
             </div>
           </CardHeader>
-          <Table<Transaction & Record<string, unknown>>
-            columns={[
-              {
-                key: "date",
-                header: "Date",
-                render: (t) => (
-                  <span className="text-slate-500 text-xs">
-                    {formatDate(t.date)}
-                  </span>
-                ),
-              },
-              {
-                key: "description",
-                header: "Description",
-                render: (t) => t.description || "—",
-              },
-              {
-                key: "categoryId",
-                header: "Category",
-                render: (t) => (
-                  <Badge variant="neutral">
-                    {getCategoryName(t.categoryId)}
-                  </Badge>
-                ),
-                hideOnMobile: true,
-              },
-              {
-                key: "amount",
-                header: "Amount",
-                render: (t) => (
-                  <span
-                    className={`font-semibold text-sm ${t.type === "income" ? "text-emerald-600" : "text-slate-700"}`}
-                  >
-                    {t.type === "income" ? "+" : "-"}
-                    {formatCurrency(t.amount)}
-                  </span>
-                ),
-              },
-            ]}
-            data={
-              recentTransactions as unknown as (Transaction &
-                Record<string, unknown>)[]
-            }
-            rowKey={(t) => t.id}
-            empty="No transactions yet"
-          />
+          {isLoadingTransactions ? (
+            <LoadingState label="Loading recent transactions..." />
+          ) : isTransactionsError ? (
+            <ErrorState message="Could not load recent transactions. Please try again." />
+          ) : (
+            <Table<BackendTransactionResponse & Record<string, unknown>>
+              columns={[
+                {
+                  key: "transactionDate",
+                  header: "Date",
+                  render: (transaction) => (
+                    <span className="text-slate-500 text-xs">
+                      {formatDate(transaction.transactionDate)}
+                    </span>
+                  ),
+                },
+                {
+                  key: "description",
+                  header: "Description",
+                  render: (transaction) => transaction.description || "—",
+                },
+                {
+                  key: "categoryName",
+                  header: "Category",
+                  render: (transaction) => (
+                    <Badge variant="neutral">{transaction.categoryName}</Badge>
+                  ),
+                  hideOnMobile: true,
+                },
+                {
+                  key: "amount",
+                  header: "Amount",
+                  render: (transaction) => (
+                    <span
+                      className={`font-semibold text-sm ${transaction.type === "INCOME" ? "text-emerald-600" : "text-slate-700"}`}
+                    >
+                      {transaction.type === "INCOME" ? "+" : "-"}
+                      {formatCurrency(transaction.amount)}
+                    </span>
+                  ),
+                },
+              ]}
+              data={
+                recentTransactions as (BackendTransactionResponse &
+                  Record<string, unknown>)[]
+              }
+              rowKey={(transaction) => transaction.transactionId}
+              empty="No transactions yet"
+            />
+          )}
         </Card>
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Budget Overview</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Budget Overview</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/budgets")}
+              >
+                View All
+              </Button>
+            </div>
           </CardHeader>
           <CardBody className="space-y-4">
-            {currentMonthBudgets.length === 0 ? (
+            {isLoadingBudgets ? (
+              <LoadingState label="Loading recent budgets..." />
+            ) : isBudgetsError ? (
+              <ErrorState message="Could not load recent budgets. Please try again." />
+            ) : recentBudgets.length === 0 ? (
               <p className="py-8 text-center text-sm text-slate-400">
-                No budgets set for this month
+                No budgets yet
               </p>
             ) : (
-              currentMonthBudgets.map((b: BudgetWithStatus) => (
-                <div key={b.id}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-slate-700">
-                      {b.categoryName}
-                    </span>
-                    <span className="text-slate-500">
-                      {formatCurrency(b.spent)} / {formatCurrency(b.amount)}
-                    </span>
+              recentBudgets.map((budget: BackendBudgetResponse) => {
+                const status = computeBudgetStatus(budget.spent, budget.amount);
+                return (
+                  <div key={budget.budgetId}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-slate-700">
+                        {budget.categoryName}
+                      </span>
+                      <span className="text-right text-slate-500">
+                        <span className="block">
+                          {formatCurrency(budget.spent)} /{" "}
+                          {formatCurrency(budget.amount)}
+                        </span>
+                        <span className="block text-xs text-slate-400">
+                          {monthLabel(budget.month)} {budget.year}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="mt-1.5">
+                      <ProgressBar
+                        value={budgetProgress(budget.spent, budget.amount)}
+                        variant={
+                          status === "overspent"
+                            ? "danger"
+                            : status === "near-limit"
+                              ? "warning"
+                              : "default"
+                        }
+                      />
+                    </div>
+                    <div className="mt-1 flex justify-between text-xs">
+                      <span className="text-slate-400">
+                        {budget.remaining >= 0
+                          ? `${formatCurrency(budget.remaining)} left`
+                          : `${formatCurrency(Math.abs(budget.remaining))} over`}
+                      </span>
+                      {status === "overspent" && (
+                        <Badge variant="error">Overspent</Badge>
+                      )}
+                      {status === "near-limit" && (
+                        <Badge variant="warning">Near limit</Badge>
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1.5">
-                    <ProgressBar
-                      value={budgetProgress(b.spent, b.amount)}
-                      variant={
-                        b.status === "overspent"
-                          ? "danger"
-                          : b.status === "near-limit"
-                            ? "warning"
-                            : "default"
-                      }
-                    />
-                  </div>
-                  <div className="mt-1 flex justify-between text-xs">
-                    <span className="text-slate-400">
-                      {b.remaining >= 0
-                        ? `${formatCurrency(b.remaining)} left`
-                        : `${formatCurrency(Math.abs(b.remaining))} over`}
-                    </span>
-                    {b.status === "overspent" && (
-                      <Badge variant="error">Overspent</Badge>
-                    )}
-                    {b.status === "near-limit" && (
-                      <Badge variant="warning">Near limit</Badge>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </CardBody>
         </Card>

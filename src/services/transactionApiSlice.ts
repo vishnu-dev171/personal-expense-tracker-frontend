@@ -63,7 +63,11 @@ export const transactionApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body: toRequestBody(body),
       }),
-      invalidatesTags: [{ type: "Transaction", id: "LIST" }],
+      invalidatesTags: [
+        { type: "Transaction", id: "LIST" },
+        "Dashboard",
+        "Reports",
+      ],
     }),
     updateTransaction: builder.mutation<
       BackendTransactionResult,
@@ -77,6 +81,8 @@ export const transactionApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: (_result, _error, { transactionId }) => [
         { type: "Transaction", id: transactionId },
         { type: "Transaction", id: "LIST" },
+        "Dashboard",
+        "Reports",
       ],
     }),
     deleteTransaction: builder.mutation<BackendMessageResult, string>({
@@ -87,6 +93,8 @@ export const transactionApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: (_result, _error, transactionId) => [
         { type: "Transaction", id: transactionId },
         { type: "Transaction", id: "LIST" },
+        "Dashboard",
+        "Reports",
       ],
     }),
   }),

@@ -1,56 +1,133 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Table } from "@/components/ui/Table";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { EmptyState } from "@/components/feedback/States";
-import { WarningState } from "@/components/feedback/States";
-import { FormSelect, FormNumberInput } from "@/components/forms/FormFields";
-import { useFinance } from "@/app/providers/FinanceProvider";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  WarningState,
+} from "@/components/feedback/States";
+import {
+  FormInput,
+  FormSelect,
+  FormNumberInput,
+} from "@/components/forms/FormFields";
 import { useToast } from "@/components/feedback/Toast";
+import {
+  useCreateBudgetMutation,
+  useDeleteBudgetMutation,
+  useGetAllBudgetsQuery,
+  useUpdateBudgetMutation,
+} from "@/services/budgetApiSlice";
+import { useGetCategoriesDropdownQuery } from "@/services/categoryApiSlice";
 import {
   budgetSchema,
   type BudgetFormData,
+  type BudgetFormInput,
   monthOptions,
   yearOptions,
 } from "../schemas/budgetSchema";
 import { formatCurrency, monthLabel } from "@/utils/format";
-import { budgetProgress } from "@/utils/budget";
+import { budgetProgress, computeBudgetStatus } from "@/utils/budget";
 import { CURRENT_MONTH, CURRENT_YEAR } from "@/constants";
-import type { Budget, BudgetWithStatus } from "@/types";
+import type { BackendBudgetResponse, BudgetQueryParams } from "@/types/api.types";
+
+interface BudgetFilters {
+  month: string;
+  year: string;
+  categoryId: string;
+  search: string;
+}
+
+const initialFilters: BudgetFilters = {
+  month: "",
+  year: "",
+  categoryId: "",
+  search: "",
+};
 
 export function BudgetsPage() {
-  const {
-    budgets,
-    categories,
-    currentMonthBudgets,
-    addBudget,
-    updateBudget,
-    deleteBudget,
-    budgetWithStatus,
-  } = useFinance();
   const { toast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
-  const [editBudget, setEditBudget] = useState<Budget | null>(null);
+  const [editBudget, setEditBudget] = useState<BackendBudgetResponse | null>(
+    null,
+  );
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [search, setSearch] = useState("");
+  const { control: filterControl } = useForm<BudgetFilters>({
+    defaultValues: initialFilters,
+  });
+  const watchedFilters = useWatch({ control: filterControl });
+  const filters: BudgetFilters = {
+    month: watchedFilters.month ?? "",
+    year: watchedFilters.year ?? "",
+    categoryId: watchedFilters.categoryId ?? "",
+    search: watchedFilters.search ?? "",
+  };
+  const queryParams: BudgetQueryParams = {
+    page,
+    limit,
+    search: search || undefined,
+    month: filters.month ? Number(filters.month) : undefined,
+    year: filters.year ? Number(filters.year) : undefined,
+    categoryId: filters.categoryId || undefined,
+  };
+  const {
+    data: budgetResponse,
+    isLoading,
+    isError,
+  } = useGetAllBudgetsQuery(queryParams);
+  const { data: currentMonthResponse } = useGetAllBudgetsQuery({
+    page: 1,
+    limit: 100,
+    month: CURRENT_MONTH,
+    year: CURRENT_YEAR,
+  });
+  const {
+    data: categoryResponse,
+    isError: isCategoryError,
+  } = useGetCategoriesDropdownQuery();
+  const [createBudget, { isLoading: isCreating }] = useCreateBudgetMutation();
+  const [updateBudget, { isLoading: isUpdating }] = useUpdateBudgetMutation();
+  const [deleteBudget] = useDeleteBudgetMutation();
+  const budgets = budgetResponse?.data?.budgets ?? [];
+  const expenseCategories =
+    categoryResponse?.data?.filter((category) => category.type === "EXPENSE") ??
+    [];
+  const currentMonthBudgets = currentMonthResponse?.data?.budgets ?? [];
+  const overspentCount = currentMonthBudgets.filter(
+    (budget) => computeBudgetStatus(budget.spent, budget.amount) === "overspent",
+  ).length;
 
-  const expenseCategories = categories.filter((c) => c.type === "expense");
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setPage(1);
+      setSearch(filters.search.trim());
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [filters.search]);
 
-  const allBudgetsWithStatus: BudgetWithStatus[] =
-    budgets.map(budgetWithStatus);
+  useEffect(() => {
+    setPage(1);
+  }, [filters.month, filters.year, filters.categoryId]);
 
   const {
     control,
     handleSubmit,
     reset,
     formState: { isSubmitting },
-  } = useForm<BudgetFormData>({
+  } = useForm<BudgetFormInput, unknown, BudgetFormData>({
     resolver: zodResolver(budgetSchema),
     defaultValues: {
       categoryId: "",
@@ -71,55 +148,45 @@ export function BudgetsPage() {
     setModalOpen(true);
   }
 
-  function openEdit(b: Budget) {
-    setEditBudget(b);
+  function openEdit(budget: BackendBudgetResponse) {
+    setEditBudget(budget);
     reset({
-      categoryId: b.categoryId,
-      amount: b.amount,
-      month: b.month,
-      year: b.year,
+      categoryId: budget.categoryId,
+      amount: budget.amount,
+      month: budget.month,
+      year: budget.year,
     });
     setModalOpen(true);
   }
 
-  function onSubmit(data: BudgetFormData) {
-    if (editBudget) {
-      const ok = updateBudget(editBudget.id, data);
-      if (!ok) {
-        toast({
-          title: "Budget already exists",
-          description: "A budget for this category and month already exists.",
-          variant: "error",
-        });
-        return;
+  async function onSubmit(data: BudgetFormData) {
+    try {
+      if (editBudget) {
+        await updateBudget({ ...data, budgetId: editBudget.budgetId }).unwrap();
+        toast({ title: "Budget updated", variant: "success" });
+      } else {
+        await createBudget(data).unwrap();
+        toast({ title: "Budget created", variant: "success" });
       }
-      toast({ title: "Budget updated", variant: "success" });
       setModalOpen(false);
-    } else {
-      const ok = addBudget(data);
-      if (!ok) {
-        toast({
-          title: "Budget already exists",
-          description: "A budget for this category and month already exists.",
-          variant: "error",
-        });
-        return;
-      }
-      toast({ title: "Budget created", variant: "success" });
-      setModalOpen(false);
+    } catch {
+      toast({ title: "Unable to save budget", variant: "error" });
     }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deleteId) return;
-    deleteBudget(deleteId);
-    setDeleteId(null);
-    toast({ title: "Budget deleted", variant: "info" });
+    try {
+      await deleteBudget(deleteId).unwrap();
+      setDeleteId(null);
+      toast({ title: "Budget deleted", variant: "info" });
+    } catch {
+      toast({ title: "Unable to delete budget", variant: "error" });
+    }
   }
 
-  const overspentCount = currentMonthBudgets.filter(
-    (b) => b.status === "overspent",
-  ).length;
+  const tableData = budgets as (BackendBudgetResponse &
+    Record<string, unknown>)[];
 
   return (
     <div>
@@ -141,11 +208,56 @@ export function BudgetsPage() {
         </div>
       )}
 
-      {allBudgetsWithStatus.length === 0 ? (
-        <Card>
+      <Card>
+        <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FormInput
+            name="search"
+            control={filterControl}
+            label="Search"
+            placeholder="Search categories"
+          />
+          <FormSelect
+            name="month"
+            control={filterControl}
+            label="Month"
+            placeholder="All months"
+            options={monthOptions}
+          />
+          <FormSelect
+            name="year"
+            control={filterControl}
+            label="Year"
+            placeholder="All years"
+            options={yearOptions}
+          />
+          <FormSelect
+            name="categoryId"
+            control={filterControl}
+            label="Category"
+            placeholder="All categories"
+            options={expenseCategories.map((category) => ({
+              label: category.name,
+              value: category.categoryId,
+            }))}
+          />
+        </div>
+
+        {isLoading ? (
+          <LoadingState label="Loading budgets..." />
+        ) : isError ? (
+          <ErrorState message="Could not load budgets. Please try again." />
+        ) : budgets.length === 0 ? (
           <EmptyState
-            title="No budgets yet"
-            description="Create a budget to track your spending limits"
+            title={
+              search || filters.month || filters.year || filters.categoryId
+                ? "No matching budgets"
+                : "No budgets yet"
+            }
+            description={
+              search || filters.month || filters.year || filters.categoryId
+                ? "Try changing your search or filters"
+                : "Create a budget to track your spending limits"
+            }
             action={
               <Button
                 leftIcon={<Plus className="h-4 w-4" />}
@@ -155,94 +267,134 @@ export function BudgetsPage() {
               </Button>
             }
           />
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {allBudgetsWithStatus.map((b) => (
-            <Card key={b.id}>
-              <div className="p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-slate-800">
-                      {b.categoryName}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {monthLabel(b.month)} {b.year}
-                    </p>
-                  </div>
-                  <div className="flex gap-1">
+        ) : (
+          <Table<BackendBudgetResponse & Record<string, unknown>>
+            columns={[
+              {
+                key: "categoryName",
+                header: "Category",
+                render: (budget) => (
+                  <span className="font-medium text-slate-700">
+                    {budget.categoryName}
+                  </span>
+                ),
+              },
+              {
+                key: "period",
+                header: "Period",
+                render: (budget) => (
+                  <span>
+                    {monthLabel(budget.month)} {budget.year}
+                  </span>
+                ),
+              },
+              {
+                key: "amount",
+                header: "Budget",
+                render: (budget) => formatCurrency(budget.amount),
+              },
+              {
+                key: "spent",
+                header: "Spent",
+                render: (budget) => formatCurrency(budget.spent),
+              },
+              {
+                key: "remaining",
+                header: "Remaining",
+                render: (budget) => (
+                  <span
+                    className={
+                      budget.remaining < 0
+                        ? "font-medium text-red-600"
+                        : "font-medium text-emerald-600"
+                    }
+                  >
+                    {formatCurrency(budget.remaining)}
+                  </span>
+                ),
+              },
+              {
+                key: "usage",
+                header: "Usage",
+                render: (budget) => {
+                  const status = computeBudgetStatus(
+                    budget.spent,
+                    budget.amount,
+                  );
+                  return (
+                    <div className="min-w-28">
+                      <ProgressBar
+                        value={budgetProgress(budget.spent, budget.amount)}
+                        variant={
+                          status === "overspent"
+                            ? "danger"
+                            : status === "near-limit"
+                              ? "warning"
+                              : "default"
+                        }
+                      />
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <span className="text-xs text-slate-400">
+                          {Math.round(budget.percentageUsed)}%
+                        </span>
+                        <Badge
+                          variant={
+                            status === "overspent"
+                              ? "error"
+                              : status === "near-limit"
+                                ? "warning"
+                                : "success"
+                          }
+                        >
+                          {status === "overspent"
+                            ? "Overspent"
+                            : status === "near-limit"
+                              ? "Near limit"
+                              : "On track"}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                },
+              },
+              {
+                key: "actions",
+                header: "Actions",
+                render: (budget) => (
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => openEdit(b)}
+                      onClick={() => openEdit(budget)}
                       className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-600"
-                      aria-label="Edit"
+                      aria-label={`Edit ${budget.categoryName} budget`}
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => setDeleteId(b.id)}
+                      onClick={() => setDeleteId(budget.budgetId)}
                       className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
-                      aria-label="Delete"
+                      aria-label={`Delete ${budget.categoryName} budget`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Budget</span>
-                  <span className="font-semibold text-slate-800">
-                    {formatCurrency(b.amount)}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Spent</span>
-                  <span
-                    className={`font-semibold ${b.status === "overspent" ? "text-red-600" : "text-slate-700"}`}
-                  >
-                    {formatCurrency(b.spent)}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Remaining</span>
-                  <span
-                    className={`font-semibold ${b.remaining < 0 ? "text-red-600" : "text-emerald-600"}`}
-                  >
-                    {formatCurrency(b.remaining)}
-                  </span>
-                </div>
-
-                <div className="mt-3">
-                  <ProgressBar
-                    value={budgetProgress(b.spent, b.amount)}
-                    variant={
-                      b.status === "overspent"
-                        ? "danger"
-                        : b.status === "near-limit"
-                          ? "warning"
-                          : "default"
-                    }
-                  />
-                </div>
-
-                <div className="mt-2 flex justify-between items-center">
-                  <span className="text-xs text-slate-400">
-                    {budgetProgress(b.spent, b.amount)}% used
-                  </span>
-                  {b.status === "overspent" && (
-                    <Badge variant="error">Overspent</Badge>
-                  )}
-                  {b.status === "near-limit" && (
-                    <Badge variant="warning">Near limit</Badge>
-                  )}
-                  {b.status === "normal" && (
-                    <Badge variant="success">On track</Badge>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+                ),
+              },
+            ]}
+            data={tableData}
+            rowKey={(budget) => budget.budgetId}
+            pagination={{
+              page: budgetResponse?.data?.page ?? page,
+              pageSize: budgetResponse?.data?.limit ?? limit,
+              totalItems: budgetResponse?.data?.totalRecords ?? 0,
+              onPageChange: setPage,
+              onPageSizeChange: (newLimit) => {
+                setPage(1);
+                setLimit(newLimit);
+              },
+            }}
+          />
+        )}
+      </Card>
 
       <Modal
         open={modalOpen}
@@ -256,11 +408,16 @@ export function BudgetsPage() {
             label="Category"
             required
             placeholder="Select expense category"
-            options={expenseCategories.map((c) => ({
-              value: c.id,
-              label: c.name,
+            options={expenseCategories.map((category) => ({
+              value: category.categoryId,
+              label: category.name,
             }))}
           />
+          {isCategoryError && (
+            <p className="text-sm text-red-600">
+              Could not load categories. Please try again.
+            </p>
+          )}
           <FormNumberInput
             name="amount"
             control={control}
@@ -294,7 +451,11 @@ export function BudgetsPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" loading={isSubmitting}>
+            <Button
+              type="submit"
+              className="flex-1"
+              loading={isSubmitting || isCreating || isUpdating}
+            >
               {editBudget ? "Update" : "Create"}
             </Button>
           </div>

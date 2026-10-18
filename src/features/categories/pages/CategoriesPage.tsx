@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Search } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { Plus, Pencil } from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -31,6 +31,10 @@ import {
 import { TRANSACTION_TYPES } from "@/constants";
 import type { BackendCategoryResponse } from "@/types/api.types";
 
+interface CategoryFilters {
+  search: string;
+}
+
 const colorPalette = [
   "#f97316",
   "#0ea5e9",
@@ -55,7 +59,10 @@ export function CategoriesPage() {
     useState<BackendCategoryResponse | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [searchInput, setSearchInput] = useState("");
+  const { control: filterControl } = useForm<CategoryFilters>({
+    defaultValues: { search: "" },
+  });
+  const searchInput = useWatch({ control: filterControl, name: "search" }) ?? "";
   const [search, setSearch] = useState("");
   const {
     data: categoryResponse,
@@ -160,16 +167,14 @@ export function CategoriesPage() {
 
       <Card>
         <div className="border-b border-slate-100 p-4">
-          <label className="relative block max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
+          <div className="max-w-sm">
+            <FormInput
+              name="search"
+              control={filterControl}
+              label="Search"
               placeholder="Search categories"
-              aria-label="Search categories"
-              className="input-base pl-9"
             />
-          </label>
+          </div>
         </div>
         {isLoading ? (
           <LoadingState label="Loading categories..." />

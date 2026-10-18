@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, Eye, Pencil, Trash2 } from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -13,6 +14,11 @@ import {
   ErrorState,
   LoadingState,
 } from "@/components/feedback/States";
+import {
+  FormDateInput,
+  FormInput,
+  FormSelect,
+} from "@/components/forms/FormFields";
 import { useToast } from "@/components/feedback/Toast";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { TRANSACTION_TYPES, PAYMENT_METHODS } from "@/constants";
@@ -45,7 +51,16 @@ const emptyFilters: Filters = {
 export function TransactionListPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
+  const { control, reset } = useForm<Filters>({ defaultValues: emptyFilters });
+  const watchedFilters = useWatch({ control });
+  const filters: Filters = {
+    search: watchedFilters.search ?? "",
+    type: watchedFilters.type ?? "",
+    categoryId: watchedFilters.categoryId ?? "",
+    paymentMethod: watchedFilters.paymentMethod ?? "",
+    dateFrom: watchedFilters.dateFrom ?? "",
+    dateTo: watchedFilters.dateTo ?? "",
+  };
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -75,17 +90,22 @@ export function TransactionListPage() {
   const hasFilters = Object.values(filters).some((value) => value !== "");
 
   useEffect(() => {
+    setPage(1);
+  }, [
+    filters.search,
+    filters.type,
+    filters.categoryId,
+    filters.paymentMethod,
+    filters.dateFrom,
+    filters.dateTo,
+  ]);
+
+  useEffect(() => {
     const timeout = window.setTimeout(() => {
-      setPage(1);
       setSearch(filters.search.trim());
     }, 300);
     return () => window.clearTimeout(timeout);
   }, [filters.search]);
-
-  function updateFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
-    setPage(1);
-    setFilters((current) => ({ ...current, [key]: value }));
-  }
 
   async function handleDelete() {
     if (!deleteId) return;
@@ -99,7 +119,7 @@ export function TransactionListPage() {
   }
 
   function clearFilters() {
-    setFilters(emptyFilters);
+    reset(emptyFilters);
     setSearch("");
     setPage(1);
   }
@@ -121,73 +141,45 @@ export function TransactionListPage() {
 
       <Card className="mb-4 p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search description or category..."
-              value={filters.search}
-              onChange={(event) => updateFilter("search", event.target.value)}
-              className="input-base pl-9"
-            />
-          </div>
-          <select
-            value={filters.type}
-            onChange={(event) =>
-              updateFilter("type", event.target.value as Filters["type"])
-            }
-            className="input-base"
-          >
-            <option value="">All Types</option>
-            {TRANSACTION_TYPES.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filters.categoryId}
-            onChange={(event) => updateFilter("categoryId", event.target.value)}
-            className="input-base"
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category.categoryId} value={category.categoryId}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filters.paymentMethod}
-            onChange={(event) =>
-              updateFilter(
-                "paymentMethod",
-                event.target.value as PaymentMethod | "",
-              )
-            }
-            className="input-base"
-          >
-            <option value="">All Payment Methods</option>
-            {PAYMENT_METHODS.map((method) => (
-              <option key={method} value={method}>
-                {method}
-              </option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={filters.dateFrom}
-            onChange={(event) => updateFilter("dateFrom", event.target.value)}
-            className="input-base"
-            aria-label="From date"
+          <FormInput
+            name="search"
+            control={control}
+            label="Search"
+            placeholder="Search description or category..."
           />
-          <input
-            type="date"
-            value={filters.dateTo}
-            onChange={(event) => updateFilter("dateTo", event.target.value)}
-            className="input-base"
-            aria-label="To date"
+          <FormSelect
+            name="type"
+            control={control}
+            label="Type"
+            placeholder="All Types"
+            options={TRANSACTION_TYPES}
           />
+          <FormSelect
+            name="categoryId"
+            control={control}
+            label="Category"
+            placeholder="All Categories"
+            options={categories.map((category) => ({
+              label: category.name,
+              value: category.categoryId,
+            }))}
+          />
+          <FormSelect
+            name="paymentMethod"
+            control={control}
+            label="Payment Method"
+            placeholder="All Payment Methods"
+            options={PAYMENT_METHODS.map((method) => ({
+              label: method,
+              value: method,
+            }))}
+          />
+          <FormDateInput
+            name="dateFrom"
+            control={control}
+            label="From date"
+          />
+          <FormDateInput name="dateTo" control={control} label="To date" />
         </div>
         {hasFilters && (
           <div className="mt-3">

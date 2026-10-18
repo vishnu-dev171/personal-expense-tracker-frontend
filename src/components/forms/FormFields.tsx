@@ -17,6 +17,11 @@ interface BaseFieldProps<T extends FieldValues> {
   disabled?: boolean;
 }
 
+interface Option {
+  label: string;
+  value: string | number;
+}
+
 function FieldWrapper({
   label,
   required,
@@ -199,7 +204,7 @@ export function FormSelect<T extends FieldValues>({
   options,
   placeholder,
 }: BaseFieldProps<T> & {
-  options: { value: string; label: string }[];
+  options: Option[];
   placeholder?: string;
 }) {
   const { field, fieldState } = useController({ name, control });
@@ -213,7 +218,7 @@ export function FormSelect<T extends FieldValues>({
       <select
         {...field}
         disabled={disabled}
-        className="input-base"
+        className="input-base select appearance-none"
         aria-invalid={!!fieldState.error}
       >
         {placeholder && <option value="">{placeholder}</option>}
@@ -234,7 +239,9 @@ export function FormDateInput<T extends FieldValues>({
   required,
   helperText,
   disabled,
-}: BaseFieldProps<T>) {
+  min,
+  max,
+}: BaseFieldProps<T> & { min?: string; max?: string }) {
   const { field, fieldState } = useController({ name, control });
   return (
     <FieldWrapper
@@ -247,6 +254,8 @@ export function FormDateInput<T extends FieldValues>({
         type="date"
         {...field}
         disabled={disabled}
+        min={min}
+        max={max}
         className="input-base"
         aria-invalid={!!fieldState.error}
       />

@@ -48,7 +48,7 @@ export const categoryApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: [{ type: "Category", id: "LIST" }],
+      invalidatesTags: [{ type: "Category", id: "LIST" }, "Dashboard", "Reports"],
     }),
     updateCategory: builder.mutation<
       BackendCategoryResponse,
@@ -62,6 +62,8 @@ export const categoryApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: (_result, _error, { categoryId }) => [
         { type: "Category", id: categoryId },
         { type: "Category", id: "LIST" },
+        "Dashboard",
+        "Reports",
       ],
     }),
     activateCategory: builder.mutation<BackendCategoriesResult, string>({
@@ -72,6 +74,8 @@ export const categoryApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: (_result, _error, categoryId) => [
         { type: "Category", id: categoryId },
         { type: "Category", id: "LIST" },
+        "Dashboard",
+        "Reports",
       ],
     }),
     deactivateCategory: builder.mutation<BackendCategoriesResult, string>({
@@ -82,6 +86,8 @@ export const categoryApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: (_result, _error, categoryId) => [
         { type: "Category", id: categoryId },
         { type: "Category", id: "LIST" },
+        "Dashboard",
+        "Reports",
       ],
     }),
   }),

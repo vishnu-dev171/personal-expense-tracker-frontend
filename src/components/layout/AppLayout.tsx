@@ -41,7 +41,7 @@ export function AppLayout() {
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
       />
-      <div className="flex flex-1 flex-col md:ml-0">
+      <div className="flex flex-1 flex-col md:ml-64">
         <Header
           title={title}
           onMenuClick={() => setSidebarOpen(true)}
