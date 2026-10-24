@@ -8,7 +8,7 @@ import {
   BackendMessageResult,
 } from "../types/api.types";
 
-const USER_API_ENDPOINT = import.meta.env.VITE_USER_API_ENDPOINT;
+const USER_API_ENDPOINT = "/users";
 
 export const userApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({

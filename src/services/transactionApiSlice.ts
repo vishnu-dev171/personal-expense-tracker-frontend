@@ -8,7 +8,7 @@ import type {
   UpdateTransactionRequest,
 } from "../types/api.types";
 
-const TRANSACTION_API_ENDPOINT = import.meta.env.VITE_TRANSACTION_API_ENDPOINT;
+const TRANSACTION_API_ENDPOINT = "/transactions";
 
 function toRequestBody(body: TransactionRequest | UpdateTransactionRequest) {
   const { attachments = [], ...fields } = body;

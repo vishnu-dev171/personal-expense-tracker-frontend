@@ -4,7 +4,7 @@ import type {
   ReportQueryParams,
 } from "../types/api.types";
 
-const REPORT_API_ENDPOINT = import.meta.env.VITE_REPORT_API_ENDPOINT;
+const REPORT_API_ENDPOINT = "/reports";
 
 export const reportApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({

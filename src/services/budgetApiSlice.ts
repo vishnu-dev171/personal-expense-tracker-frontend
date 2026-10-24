@@ -8,7 +8,7 @@ import type {
   UpdateBudgetRequest,
 } from "../types/api.types";
 
-const BUDGET_API_ENDPOINT = import.meta.env.VITE_BUDGET_API_ENDPOINT;
+const BUDGET_API_ENDPOINT = "/budgets";
 
 export const budgetApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
@@ -26,8 +26,7 @@ export const budgetApiSlice = apiSlice.injectEndpoints({
       ],
     }),
     getBudgetById: builder.query<BackendBudgetResult, string>({
-      query: (budgetId) =>
-        `${BUDGET_API_ENDPOINT}/getBudgetById/${budgetId}`,
+      query: (budgetId) => `${BUDGET_API_ENDPOINT}/getBudgetById/${budgetId}`,
       providesTags: (_result, _error, budgetId) => [
         { type: "Budget", id: budgetId },
       ],

@@ -8,14 +8,16 @@ import type {
   UpdateCategoryRequest,
 } from "../types/api.types";
 
-const CATEGORY_API_ENDPOINT = import.meta.env.VITE_CATEGORY_API_ENDPOINT;
+const CATEGORY_API_ENDPOINT = "/categories";
 
 export const categoryApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getCategoriesDropdown: builder.query<BackendCategoriesDropdownResult, void>({
-      query: () => `${CATEGORY_API_ENDPOINT}/getCategoriesDropdown`,
-      providesTags: [{ type: "Category", id: "LIST" }],
-    }),
+    getCategoriesDropdown: builder.query<BackendCategoriesDropdownResult, void>(
+      {
+        query: () => `${CATEGORY_API_ENDPOINT}/getCategoriesDropdown`,
+        providesTags: [{ type: "Category", id: "LIST" }],
+      },
+    ),
     getAllCategories: builder.query<
       BackendCategoriesResult,
       CategoryQueryParams
@@ -48,7 +50,11 @@ export const categoryApiSlice = apiSlice.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: [{ type: "Category", id: "LIST" }, "Dashboard", "Reports"],
+      invalidatesTags: [
+        { type: "Category", id: "LIST" },
+        "Dashboard",
+        "Reports",
+      ],
     }),
     updateCategory: builder.mutation<
       BackendCategoryResponse,

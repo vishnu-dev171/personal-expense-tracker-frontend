@@ -7,7 +7,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { Mutex } from "async-mutex";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
-const USER_API_ENDPOINT = import.meta.env.VITE_USER_API_ENDPOINT;
+const USER_API_ENDPOINT = "/users";
 const mutex = new Mutex();
 
 const rawBaseQuery = fetchBaseQuery({
