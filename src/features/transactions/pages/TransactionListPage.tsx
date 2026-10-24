@@ -5,7 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
+import { Card, CardHeader } from "@/components/ui/Card";
 import { Table } from "@/components/ui/Table";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Modal } from "@/components/ui/Modal";
@@ -29,6 +29,7 @@ import {
   useGetAllTransactionsQuery,
 } from "@/services/transactionApiSlice";
 import { useGetCategoriesDropdownQuery } from "@/services/categoryApiSlice";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface Filters {
   search: string;
@@ -51,6 +52,7 @@ const emptyFilters: Filters = {
 export function TransactionListPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currency } = useUserPreferences();
   const { control, reset } = useForm<Filters>({ defaultValues: emptyFilters });
   const watchedFilters = useWatch({ control });
   const filters: Filters = {
@@ -125,7 +127,7 @@ export function TransactionListPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <PageHeader
         title="Transactions"
         description="View, edit, and manage all your transactions"
@@ -140,7 +142,7 @@ export function TransactionListPage() {
       />
 
       <Card className="mb-4 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <FormInput
             name="search"
             control={control}
@@ -174,11 +176,7 @@ export function TransactionListPage() {
               value: method,
             }))}
           />
-          <FormDateInput
-            name="dateFrom"
-            control={control}
-            label="From date"
-          />
+          <FormDateInput name="dateFrom" control={control} label="From date" />
           <FormDateInput name="dateTo" control={control} label="To date" />
         </div>
         {hasFilters && (
@@ -191,6 +189,7 @@ export function TransactionListPage() {
       </Card>
 
       <Card>
+        <CardHeader className="font-semibold">Transaction Lists</CardHeader>
         {isLoading ? (
           <LoadingState label="Loading transactions..." />
         ) : isError ? (
@@ -216,6 +215,7 @@ export function TransactionListPage() {
           />
         ) : (
           <Table<BackendTransactionResponse & Record<string, unknown>>
+            wrapperClassName="min-w-0 p-4"
             columns={[
               {
                 key: "transactionDate",
@@ -250,7 +250,9 @@ export function TransactionListPage() {
                 header: "Type",
                 render: (transaction) => (
                   <Badge
-                    variant={transaction.type === "INCOME" ? "success" : "error"}
+                    variant={
+                      transaction.type === "INCOME" ? "success" : "error"
+                    }
                   >
                     {transaction.type === "INCOME" ? "Income" : "Expense"}
                   </Badge>
@@ -264,7 +266,7 @@ export function TransactionListPage() {
                     className={`font-semibold ${transaction.type === "INCOME" ? "text-emerald-600" : "text-slate-700"}`}
                   >
                     {transaction.type === "INCOME" ? "+" : "-"}
-                    {formatCurrency(transaction.amount)}
+                    {formatCurrency(transaction.amount, currency)}
                   </span>
                 ),
               },
@@ -363,7 +365,7 @@ export function TransactionListPage() {
             </dd>
             <dt className="text-slate-500">Amount</dt>
             <dd className="font-semibold text-slate-800">
-              {formatCurrency(viewedTransaction.amount)}
+              {formatCurrency(viewedTransaction.amount, currency)}
             </dd>
             <dt className="text-slate-500">Notes</dt>
             <dd className="font-medium text-slate-800">
@@ -371,8 +373,9 @@ export function TransactionListPage() {
             </dd>
             <dt className="text-slate-500">Attachments</dt>
             <dd className="font-medium text-slate-800">
-              {viewedTransaction.files.map((file) => file.originalName).join(", ") ||
-                "—"}
+              {viewedTransaction.files
+                .map((file) => file.originalName)
+                .join(", ") || "—"}
             </dd>
           </dl>
         )}

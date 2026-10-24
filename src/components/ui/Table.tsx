@@ -15,6 +15,7 @@ interface TableProps<T> {
   rowKey: (row: T) => string;
   empty?: ReactNode;
   pagination?: PaginationProps;
+  wrapperClassName?: string;
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -23,6 +24,7 @@ export function Table<T extends Record<string, unknown>>({
   rowKey,
   empty,
   pagination,
+  wrapperClassName,
 }: TableProps<T>) {
   if (data.length === 0) {
     return (
@@ -36,10 +38,10 @@ export function Table<T extends Record<string, unknown>>({
   }
 
   return (
-    <div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
+    <div className={wrapperClassName}>
+      <div className="overflow-x-auto rounded-box border border-base-content/5">
+        <table className="w-full text-left text-sm table">
+          <thead className="bg-gray-100">
             <tr className="border-b border-slate-200">
               {columns.map((col) => (
                 <th

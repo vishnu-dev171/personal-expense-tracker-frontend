@@ -4,6 +4,8 @@ import {
   LoginRequest,
   RegisterRequest,
   Profile,
+  UpdateProfileRequest,
+  BackendMessageResult,
 } from "../types/api.types";
 
 const USER_API_ENDPOINT = import.meta.env.VITE_USER_API_ENDPOINT;
@@ -37,6 +39,16 @@ export const userApiSlice = apiSlice.injectEndpoints({
       query: () => `${USER_API_ENDPOINT}/profile`,
       providesTags: ["User"],
     }),
+    updateProfile: builder.mutation<BackendMessageResult, UpdateProfileRequest>(
+      {
+        query: (profile) => ({
+          url: `${USER_API_ENDPOINT}/updateProfile`,
+          method: "PATCH",
+          body: profile,
+        }),
+        invalidatesTags: ["User"],
+      },
+    ),
   }),
 });
 
@@ -45,4 +57,5 @@ export const {
   useLoginUserMutation,
   useLogoutUserMutation,
   useGetUserProfileQuery,
+  useUpdateProfileMutation,
 } = userApiSlice;

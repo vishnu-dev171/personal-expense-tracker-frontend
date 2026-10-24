@@ -62,7 +62,8 @@ export function CategoriesPage() {
   const { control: filterControl } = useForm<CategoryFilters>({
     defaultValues: { search: "" },
   });
-  const searchInput = useWatch({ control: filterControl, name: "search" }) ?? "";
+  const searchInput =
+    useWatch({ control: filterControl, name: "search" }) ?? "";
   const [search, setSearch] = useState("");
   const {
     data: categoryResponse,
@@ -205,6 +206,7 @@ export function CategoriesPage() {
           />
         ) : (
           <Table<BackendCategoryResponse & Record<string, unknown>>
+            wrapperClassName="p-4"
             columns={[
               {
                 key: "name",

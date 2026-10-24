@@ -30,6 +30,7 @@ import { TrendingUp, TrendingDown, Scale } from "lucide-react";
 import { useGetReportsQuery } from "@/services/reportApiSlice";
 import { useGetCategoriesDropdownQuery } from "@/services/categoryApiSlice";
 import type { ReportQueryParams } from "@/types/api.types";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface ReportFilters {
   dateFrom: string;
@@ -39,6 +40,7 @@ interface ReportFilters {
 }
 
 export function ReportsPage() {
+  const { currency } = useUserPreferences();
   const defaultFilters: ReportFilters = {
     dateFrom: "",
     dateTo: "",
@@ -201,7 +203,7 @@ export function ReportsPage() {
                   <div>
                     <p className="text-xs text-slate-400">Total Income</p>
                     <p className="text-lg font-semibold text-emerald-600">
-                      {formatCurrency(report.summary.totalIncome)}
+                      {formatCurrency(report.summary.totalIncome, currency)}
                     </p>
                   </div>
                 </div>
@@ -216,7 +218,7 @@ export function ReportsPage() {
                   <div>
                     <p className="text-xs text-slate-400">Total Expense</p>
                     <p className="text-lg font-semibold text-red-600">
-                      {formatCurrency(report.summary.totalExpense)}
+                      {formatCurrency(report.summary.totalExpense, currency)}
                     </p>
                   </div>
                 </div>
@@ -233,7 +235,7 @@ export function ReportsPage() {
                     <p
                       className={`text-lg font-semibold ${report.summary.net >= 0 ? "text-emerald-600" : "text-red-600"}`}
                     >
-                      {formatCurrency(report.summary.net)}
+                      {formatCurrency(report.summary.net, currency)}
                     </p>
                   </div>
                 </div>
@@ -257,7 +259,9 @@ export function ReportsPage() {
                     <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                     <Tooltip
                       formatter={(v) =>
-                        typeof v === "number" ? formatCurrency(v) : v
+                        typeof v === "number"
+                          ? formatCurrency(v, currency)
+                          : v
                       }
                     />
                     <Legend />
@@ -293,7 +297,9 @@ export function ReportsPage() {
                     <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                     <Tooltip
                       formatter={(v) =>
-                        typeof v === "number" ? formatCurrency(v) : v
+                        typeof v === "number"
+                          ? formatCurrency(v, currency)
+                          : v
                       }
                     />
                     <Legend />
@@ -340,7 +346,7 @@ export function ReportsPage() {
                             {item.name}
                           </span>
                           <span className="text-slate-500">
-                            {formatCurrency(item.value)}{" "}
+                            {formatCurrency(item.value, currency)}{" "}
                             <Badge variant="neutral" className="ml-1">
                               {pct.toFixed(0)}%
                             </Badge>

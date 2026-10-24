@@ -38,9 +38,11 @@ import type {
 import { useGetDashboardQuery } from "@/services/dashboardApiSlice";
 import { useGetAllTransactionsQuery } from "@/services/transactionApiSlice";
 import { useGetAllBudgetsQuery } from "@/services/budgetApiSlice";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { currency } = useUserPreferences();
   const { categories } = useFinance();
   const {
     data: dashboardResponse,
@@ -103,26 +105,36 @@ export function DashboardPage() {
       ]
     : [];
 
+  const pageHeader = (
+    <PageHeader
+      title="Dashboard"
+      description={`Financial overview for ${monthLabel(dashboard?.summary.month ?? CURRENT_MONTH)} ${dashboard?.summary.year ?? CURRENT_YEAR}`}
+      actions={
+        <Button
+          leftIcon={<Plus className="h-4 w-4" />}
+          onClick={() => navigate("/transactions/new")}
+        >
+          Add Transaction
+        </Button>
+      }
+    />
+  );
+
+  if (isLoading) {
+    return (
+      <div>
+        {pageHeader}
+        <Card className="mt-4">
+          <LoadingState label="Loading dashboard..." />
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <PageHeader
-        title="Dashboard"
-        description={`Financial overview for ${monthLabel(dashboard?.summary.month ?? CURRENT_MONTH)} ${dashboard?.summary.year ?? CURRENT_YEAR}`}
-        actions={
-          <Button
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => navigate("/transactions/new")}
-          >
-            Add Transaction
-          </Button>
-        }
-      />
+      {pageHeader}
 
-      {isLoading && (
-        <p className="mb-4 text-sm text-slate-500" role="status">
-          Loading dashboard data...
-        </p>
-      )}
       {isError && (
         <div
           className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
@@ -138,7 +150,10 @@ export function DashboardPage() {
       {dashboard && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {summaryCards.map((card) => (
-            <Card key={card.label}>
+            <Card
+              key={card.label}
+              className="bg-white rounded-md border border-gray-100 shadow-sm"
+            >
               <CardBody>
                 <div className="flex items-center justify-between">
                   <div>
@@ -146,7 +161,7 @@ export function DashboardPage() {
                       {card.label}
                     </p>
                     <p className="mt-1 text-xl font-semibold text-slate-800">
-                      {formatCurrency(card.value)}
+                      {formatCurrency(card.value, currency)}
                     </p>
                   </div>
                   <div
@@ -162,7 +177,7 @@ export function DashboardPage() {
       )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="bg-white rounded-md border border-gray-100">
           <CardHeader>
             <CardTitle>Income vs Expense Trend</CardTitle>
           </CardHeader>
@@ -177,7 +192,7 @@ export function DashboardPage() {
                 <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                 <Tooltip
                   formatter={(v) =>
-                    typeof v === "number" ? formatCurrency(v) : v
+                    typeof v === "number" ? formatCurrency(v, currency) : v
                   }
                 />
                 <Legend />
@@ -198,7 +213,7 @@ export function DashboardPage() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card className="bg-white rounded-md border border-gray-100">
           <CardHeader>
             <CardTitle>Expense by Category</CardTitle>
           </CardHeader>
@@ -230,7 +245,7 @@ export function DashboardPage() {
                   </Pie>
                   <Tooltip
                     formatter={(v) =>
-                      typeof v === "number" ? formatCurrency(v) : v
+                      typeof v === "number" ? formatCurrency(v, currency) : v
                     }
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -241,8 +256,8 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
+      <div className="mt-4 grid gap-4 lg:grid-cols-4">
+        <Card className="col-span-2 bg-white rounded-md border border-gray-100">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Recent Transactions</CardTitle>
@@ -260,54 +275,58 @@ export function DashboardPage() {
           ) : isTransactionsError ? (
             <ErrorState message="Could not load recent transactions. Please try again." />
           ) : (
-            <Table<BackendTransactionResponse & Record<string, unknown>>
-              columns={[
-                {
-                  key: "transactionDate",
-                  header: "Date",
-                  render: (transaction) => (
-                    <span className="text-slate-500 text-xs">
-                      {formatDate(transaction.transactionDate)}
-                    </span>
-                  ),
-                },
-                {
-                  key: "description",
-                  header: "Description",
-                  render: (transaction) => transaction.description || "—",
-                },
-                {
-                  key: "categoryName",
-                  header: "Category",
-                  render: (transaction) => (
-                    <Badge variant="neutral">{transaction.categoryName}</Badge>
-                  ),
-                  hideOnMobile: true,
-                },
-                {
-                  key: "amount",
-                  header: "Amount",
-                  render: (transaction) => (
-                    <span
-                      className={`font-semibold text-sm ${transaction.type === "INCOME" ? "text-emerald-600" : "text-slate-700"}`}
-                    >
-                      {transaction.type === "INCOME" ? "+" : "-"}
-                      {formatCurrency(transaction.amount)}
-                    </span>
-                  ),
-                },
-              ]}
-              data={
-                recentTransactions as (BackendTransactionResponse &
-                  Record<string, unknown>)[]
-              }
-              rowKey={(transaction) => transaction.transactionId}
-              empty="No transactions yet"
-            />
+            <div className="p-4">
+              <Table<BackendTransactionResponse & Record<string, unknown>>
+                columns={[
+                  {
+                    key: "transactionDate",
+                    header: "Date",
+                    render: (transaction) => (
+                      <span className="text-slate-500 text-xs">
+                        {formatDate(transaction.transactionDate)}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "description",
+                    header: "Description",
+                    render: (transaction) => transaction.description || "—",
+                  },
+                  {
+                    key: "categoryName",
+                    header: "Category",
+                    render: (transaction) => (
+                      <Badge variant="neutral">
+                        {transaction.categoryName}
+                      </Badge>
+                    ),
+                    hideOnMobile: true,
+                  },
+                  {
+                    key: "amount",
+                    header: "Amount",
+                    render: (transaction) => (
+                      <span
+                        className={`font-semibold text-sm ${transaction.type === "INCOME" ? "text-emerald-600" : "text-slate-700"}`}
+                      >
+                        {transaction.type === "INCOME" ? "+" : "-"}
+                        {formatCurrency(transaction.amount, currency)}
+                      </span>
+                    ),
+                  },
+                ]}
+                data={
+                  recentTransactions as (BackendTransactionResponse &
+                    Record<string, unknown>)[]
+                }
+                rowKey={(transaction) => transaction.transactionId}
+                empty="No transactions yet"
+              />
+            </div>
           )}
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="col-span-2 bg-white rounded-md border border-gray-100">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Budget Overview</CardTitle>
@@ -340,8 +359,8 @@ export function DashboardPage() {
                       </span>
                       <span className="text-right text-slate-500">
                         <span className="block">
-                          {formatCurrency(budget.spent)} /{" "}
-                          {formatCurrency(budget.amount)}
+                          {formatCurrency(budget.spent, currency)} /{" "}
+                          {formatCurrency(budget.amount, currency)}
                         </span>
                         <span className="block text-xs text-slate-400">
                           {monthLabel(budget.month)} {budget.year}
@@ -363,8 +382,8 @@ export function DashboardPage() {
                     <div className="mt-1 flex justify-between text-xs">
                       <span className="text-slate-400">
                         {budget.remaining >= 0
-                          ? `${formatCurrency(budget.remaining)} left`
-                          : `${formatCurrency(Math.abs(budget.remaining))} over`}
+                          ? `${formatCurrency(budget.remaining, currency)} left`
+                          : `${formatCurrency(Math.abs(budget.remaining), currency)} over`}
                       </span>
                       {status === "overspent" && (
                         <Badge variant="error">Overspent</Badge>

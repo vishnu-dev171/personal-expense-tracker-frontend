@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import {
@@ -10,7 +10,11 @@ import {
   FormDateInput,
 } from "@/components/forms/FormFields";
 import { Button } from "@/components/ui/Button";
-import { TRANSACTION_TYPES, PAYMENT_METHODS } from "@/constants";
+import {
+  CURRENCY_SYMBOLS,
+  TRANSACTION_TYPES,
+  PAYMENT_METHODS,
+} from "@/constants";
 import type { BackendTransactionResponse } from "@/types/api.types";
 import {
   useCreateTransactionMutation,
@@ -24,6 +28,7 @@ import {
 } from "../schemas/transactionSchema";
 import { useToast } from "@/components/feedback/Toast";
 import { toISODate } from "@/utils/format";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface TransactionFormProps {
   initialData?: BackendTransactionResponse;
@@ -32,6 +37,8 @@ interface TransactionFormProps {
 export function TransactionForm({ initialData }: TransactionFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currency, defaultTransactionType, profileLoaded } =
+    useUserPreferences();
   const [attachments, setAttachments] = useState<File[]>([]);
   const {
     data: categoryResponse,
@@ -50,7 +57,8 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
     handleSubmit,
     register,
     watch,
-    formState: { errors, isSubmitting },
+    setValue,
+    formState: { errors, isSubmitting, dirtyFields },
   } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: initialData
@@ -64,7 +72,7 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
           notes: initialData.notes ?? "",
         }
       : {
-          type: "expense",
+          type: defaultTransactionType,
           amount: undefined,
           categoryId: "",
           description: "",
@@ -73,6 +81,18 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
           notes: "",
         },
   });
+
+  useEffect(() => {
+    if (!isEdit && profileLoaded && !dirtyFields.type) {
+      setValue("type", defaultTransactionType);
+    }
+  }, [
+    defaultTransactionType,
+    dirtyFields.type,
+    isEdit,
+    profileLoaded,
+    setValue,
+  ]);
 
   const selectedType = watch("type");
   const availableCategories = categories.filter(
@@ -160,6 +180,7 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
             required
             placeholder="0.00"
             min={0}
+            prefix={CURRENCY_SYMBOLS[currency]}
           />
           <FormDateInput
             name="transactionDate"

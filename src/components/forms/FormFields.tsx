@@ -137,7 +137,8 @@ export function FormNumberInput<T extends FieldValues>({
   disabled,
   placeholder,
   min,
-}: BaseFieldProps<T> & { placeholder?: string; min?: number }) {
+  prefix,
+}: BaseFieldProps<T> & { placeholder?: string; min?: number; prefix?: string }) {
   const { field, fieldState } = useController({ name, control });
   return (
     <FieldWrapper
@@ -146,20 +147,27 @@ export function FormNumberInput<T extends FieldValues>({
       error={fieldState.error?.message}
       helperText={helperText}
     >
-      <input
-        type="number"
-        {...field}
-        disabled={disabled}
-        placeholder={placeholder}
-        min={min}
-        onChange={(e) =>
-          field.onChange(
-            e.target.value === "" ? undefined : Number(e.target.value),
-          )
-        }
-        className="input-base"
-        aria-invalid={!!fieldState.error}
-      />
+      <div className="relative">
+        {prefix && (
+          <span className="absolute inset-y-0 left-3 flex items-center text-slate-500">
+            {prefix}
+          </span>
+        )}
+        <input
+          type="number"
+          {...field}
+          disabled={disabled}
+          placeholder={placeholder}
+          min={min}
+          onChange={(e) =>
+            field.onChange(
+              e.target.value === "" ? undefined : Number(e.target.value),
+            )
+          }
+          className={prefix ? "input-base pl-8" : "input-base"}
+          aria-invalid={!!fieldState.error}
+        />
+      </div>
     </FieldWrapper>
   );
 }

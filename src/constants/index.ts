@@ -39,7 +39,6 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹",
   USD: "$",
   EUR: "€",
-  GBP: "£",
 };
 
 export const STORAGE_KEYS = {

@@ -2,8 +2,15 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  currency?: string;
-  defaultTransactionType?: "income" | "expense";
+  currency?: "INR" | "USD" | "EUR";
+  defaultTransactionType?: "INCOME" | "EXPENSE";
+}
+
+export interface UpdateProfileRequest {
+  name: string;
+  email: string;
+  currency?: "INR" | "USD" | "EUR";
+  defaultTransactionType?: NonNullable<User["defaultTransactionType"]>;
 }
 
 export interface LoginRequest {
@@ -43,7 +50,10 @@ export interface BackendCategoriesResponse {
 export interface BackendCategoriesDropdownResult {
   success: boolean;
   message: string;
-  data?: Pick<BackendCategoryResponse, "categoryId" | "name" | "type" | "status">[];
+  data?: Pick<
+    BackendCategoryResponse,
+    "categoryId" | "name" | "type" | "status"
+  >[];
 }
 
 export interface BackendBudgetResponse {

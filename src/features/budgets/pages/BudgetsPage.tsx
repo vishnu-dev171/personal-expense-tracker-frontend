@@ -39,7 +39,12 @@ import {
 import { formatCurrency, monthLabel } from "@/utils/format";
 import { budgetProgress, computeBudgetStatus } from "@/utils/budget";
 import { CURRENT_MONTH, CURRENT_YEAR } from "@/constants";
-import type { BackendBudgetResponse, BudgetQueryParams } from "@/types/api.types";
+import type {
+  BackendBudgetResponse,
+  BudgetQueryParams,
+} from "@/types/api.types";
+import { CURRENCY_SYMBOLS } from "@/constants";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface BudgetFilters {
   month: string;
@@ -57,6 +62,7 @@ const initialFilters: BudgetFilters = {
 
 export function BudgetsPage() {
   const { toast } = useToast();
+  const { currency } = useUserPreferences();
   const [modalOpen, setModalOpen] = useState(false);
   const [editBudget, setEditBudget] = useState<BackendBudgetResponse | null>(
     null,
@@ -94,10 +100,8 @@ export function BudgetsPage() {
     month: CURRENT_MONTH,
     year: CURRENT_YEAR,
   });
-  const {
-    data: categoryResponse,
-    isError: isCategoryError,
-  } = useGetCategoriesDropdownQuery();
+  const { data: categoryResponse, isError: isCategoryError } =
+    useGetCategoriesDropdownQuery();
   const [createBudget, { isLoading: isCreating }] = useCreateBudgetMutation();
   const [updateBudget, { isLoading: isUpdating }] = useUpdateBudgetMutation();
   const [deleteBudget] = useDeleteBudgetMutation();
@@ -107,7 +111,8 @@ export function BudgetsPage() {
     [];
   const currentMonthBudgets = currentMonthResponse?.data?.budgets ?? [];
   const overspentCount = currentMonthBudgets.filter(
-    (budget) => computeBudgetStatus(budget.spent, budget.amount) === "overspent",
+    (budget) =>
+      computeBudgetStatus(budget.spent, budget.amount) === "overspent",
   ).length;
 
   useEffect(() => {
@@ -269,6 +274,7 @@ export function BudgetsPage() {
           />
         ) : (
           <Table<BackendBudgetResponse & Record<string, unknown>>
+            wrapperClassName="p-4"
             columns={[
               {
                 key: "categoryName",
@@ -291,12 +297,12 @@ export function BudgetsPage() {
               {
                 key: "amount",
                 header: "Budget",
-                render: (budget) => formatCurrency(budget.amount),
+                render: (budget) => formatCurrency(budget.amount, currency),
               },
               {
                 key: "spent",
                 header: "Spent",
-                render: (budget) => formatCurrency(budget.spent),
+                render: (budget) => formatCurrency(budget.spent, currency),
               },
               {
                 key: "remaining",
@@ -309,7 +315,7 @@ export function BudgetsPage() {
                         : "font-medium text-emerald-600"
                     }
                   >
-                    {formatCurrency(budget.remaining)}
+                    {formatCurrency(budget.remaining, currency)}
                   </span>
                 ),
               },
@@ -425,6 +431,7 @@ export function BudgetsPage() {
             required
             placeholder="0.00"
             min={0}
+            prefix={CURRENCY_SYMBOLS[currency]}
           />
           <div className="grid grid-cols-2 gap-4">
             <FormSelect
