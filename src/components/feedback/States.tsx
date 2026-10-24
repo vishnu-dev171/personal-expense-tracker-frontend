@@ -24,7 +24,7 @@ export function EmptyState({
 
 export function LoadingState({ label = "Loading..." }: { label?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center py-16 text-center">
       <Loader2 className="mb-2 h-8 w-8 animate-spin text-brand-500" />
       <p className="text-sm text-slate-400">{label}</p>
     </div>

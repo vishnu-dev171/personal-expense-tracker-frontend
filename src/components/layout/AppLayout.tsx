@@ -35,13 +35,13 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen max-w-screen bg-slate-50">
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
       />
-      <div className="flex flex-1 flex-col md:ml-64">
+      <div className="flex flex-1 flex-col md:ml-64 overflow-hidden">
         <Header
           title={title}
           onMenuClick={() => setSidebarOpen(true)}

@@ -34,9 +34,11 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Receipt className="h-6 w-6" />
-          </div>
+          <img
+            src="/assets/main-logo.png"
+            alt="app-logo"
+            className="mb-3 h-32 w-32 object-contain"
+          />
           <h1 className="text-xl font-semibold text-slate-800">
             Personal Expense Tracker
           </h1>

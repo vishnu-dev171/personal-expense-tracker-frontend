@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -27,7 +26,6 @@ import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Table } from "@/components/ui/Table";
 import { ErrorState, LoadingState } from "@/components/feedback/States";
-import { useFinance } from "@/app/providers/FinanceProvider";
 import { formatCurrency, formatDate, monthLabel } from "@/utils/format";
 import { budgetProgress, computeBudgetStatus } from "@/utils/budget";
 import { CURRENT_MONTH, CURRENT_YEAR } from "@/constants";
@@ -38,12 +36,13 @@ import type {
 import { useGetDashboardQuery } from "@/services/dashboardApiSlice";
 import { useGetAllTransactionsQuery } from "@/services/transactionApiSlice";
 import { useGetAllBudgetsQuery } from "@/services/budgetApiSlice";
+import { useGetCategoriesDropdownQuery } from "@/services/categoryApiSlice";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { getCategoryColor } from "@/utils/categoryColors";
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const { currency } = useUserPreferences();
-  const { categories } = useFinance();
   const {
     data: dashboardResponse,
     isLoading,
@@ -65,12 +64,13 @@ export function DashboardPage() {
   } = useGetAllBudgetsQuery({ page: 1, limit: 10 });
   const recentTransactions = transactionResponse?.data?.transactions ?? [];
   const recentBudgets = budgetResponse?.data?.budgets ?? [];
-
-  const categoryColors = useMemo(() => {
-    const colors: Record<string, string> = {};
-    for (const c of categories) colors[c.name] = c.color ?? "#64748b";
-    return colors;
-  }, [categories]);
+  const { data: categoryResponse } = useGetCategoriesDropdownQuery();
+  const categoryColors = new Map(
+    (categoryResponse?.data ?? []).map((category, index) => [
+      category.categoryId,
+      getCategoryColor(index),
+    ]),
+  );
 
   const summaryCards = dashboard
     ? [
@@ -239,7 +239,7 @@ export function DashboardPage() {
                     {expenseByCategory.map((entry) => (
                       <Cell
                         key={entry.categoryId}
-                        fill={categoryColors[entry.name] ?? "#64748b"}
+                        fill={categoryColors.get(entry.categoryId) ?? "#64748b"}
                       />
                     ))}
                   </Pie>

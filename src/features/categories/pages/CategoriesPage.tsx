@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Pencil } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +15,6 @@ import {
   LoadingState,
 } from "@/components/feedback/States";
 import { FormInput, FormSelect } from "@/components/forms/FormFields";
-import { useFinance } from "@/app/providers/FinanceProvider";
 import { useToast } from "@/components/feedback/Toast";
 import {
   useActivateCategoryMutation,
@@ -30,27 +29,13 @@ import {
 } from "../schemas/categorySchema";
 import { TRANSACTION_TYPES } from "@/constants";
 import type { BackendCategoryResponse } from "@/types/api.types";
+import { getCategoryColor } from "@/utils/categoryColors";
 
 interface CategoryFilters {
   search: string;
 }
 
-const colorPalette = [
-  "#f97316",
-  "#0ea5e9",
-  "#ec4899",
-  "#8b5cf6",
-  "#f59e0b",
-  "#ef4444",
-  "#14b8a6",
-  "#64748b",
-  "#10b981",
-  "#22c55e",
-  "#16a34a",
-];
-
 export function CategoriesPage() {
-  const { transactions } = useFinance();
   const { toast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [editCategory, setEditCategory] =
@@ -86,14 +71,6 @@ export function CategoriesPage() {
     }, 300);
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
-
-  const txnCount = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const t of transactions) {
-      map.set(t.categoryId, (map.get(t.categoryId) ?? 0) + 1);
-    }
-    return map;
-  }, [transactions]);
 
   const {
     control,
@@ -216,11 +193,9 @@ export function CategoriesPage() {
                     <span
                       className="h-3 w-3 rounded-full"
                       style={{
-                        backgroundColor:
-                          colorPalette[
-                            ((page - 1) * limit + categories.indexOf(c)) %
-                              colorPalette.length
-                          ],
+                        backgroundColor: getCategoryColor(
+                          (page - 1) * limit + categories.indexOf(c),
+                        ),
                       }}
                     />
                     <span className="font-medium text-slate-700">{c.name}</span>
@@ -246,16 +221,6 @@ export function CategoriesPage() {
                     {c.status === "ACTIVE" ? "Active" : "Inactive"}
                   </Badge>
                 ),
-              },
-              {
-                key: "count",
-                header: "Transactions",
-                render: (c) => (
-                  <span className="text-slate-500">
-                    {txnCount.get(c.categoryId) ?? 0}
-                  </span>
-                ),
-                hideOnMobile: true,
               },
               {
                 key: "actions",

@@ -1,15 +1,14 @@
-import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard,
   ArrowRightLeft,
+  BarChart3,
+  LayoutDashboard,
+  LogOut,
+  Settings,
   Tags,
   Wallet,
-  BarChart3,
-  Settings,
-  LogOut,
   X,
-  Receipt,
 } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
 
 interface SidebarProps {
   open: boolean;
@@ -27,6 +26,7 @@ const navItems = [
 ];
 
 export function Sidebar({ open, onClose, onLogout }: SidebarProps) {
+  const navigate = useNavigate();
   return (
     <>
       {open && (
@@ -41,10 +41,15 @@ export function Sidebar({ open, onClose, onLogout }: SidebarProps) {
         }`}
       >
         <div className="flex items-center justify-between px-5 py-5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
-              <Receipt className="h-5 w-5" />
-            </div>
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => navigate("/dashboard")}
+          >
+            <img
+              src="/assets/main-logo.png"
+              alt="app-logo"
+              className="h-9 w-9 object-contain"
+            />
             <div>
               <p className="text-sm font-semibold text-slate-800">
                 Expense Tracker
