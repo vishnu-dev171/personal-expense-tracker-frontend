@@ -160,9 +160,7 @@ export function FormNumberInput<T extends FieldValues>({
           placeholder={placeholder}
           min={min}
           onChange={(e) =>
-            field.onChange(
-              e.target.value === "" ? undefined : Number(e.target.value),
-            )
+            field.onChange(e.target.value === "" ? "" : Number(e.target.value))
           }
           className={prefix ? "input-base pl-8" : "input-base"}
           aria-invalid={!!fieldState.error}

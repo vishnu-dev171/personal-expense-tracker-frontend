@@ -64,7 +64,7 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
     defaultValues: initialData
       ? {
           type: initialData.type === "INCOME" ? "income" : "expense",
-          amount: initialData.amount,
+          amount: Number(initialData.amount),
           categoryId: initialData.categoryId,
           description: initialData.description ?? "",
           transactionDate: initialData.transactionDate.slice(0, 10),
@@ -135,7 +135,9 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
   }
 
   if (isCategoryError) {
-    return <ErrorState message="Could not load categories. Please try again." />;
+    return (
+      <ErrorState message="Could not load categories. Please try again." />
+    );
   }
 
   return (
