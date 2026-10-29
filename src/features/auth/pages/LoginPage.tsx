@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { loginSchema, type LoginFormData } from "../schemas/loginSchema";
 import { getErrorMessage } from "@/utils/helper";
+import { AuthLayout } from "@/components/layout/AuthLayout";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -31,61 +32,50 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center">
-          <img
-            src="/assets/main-logo.png"
-            alt="app-logo"
-            className="mb-3 h-32 w-32 object-contain"
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Sign in to manage your finances"
+      error={
+        error && (
+          <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {getErrorMessage(error)}
+          </div>
+        )
+      }
+      footer={
+        <p>
+          Don't have an account?{" "}
+          <Link
+            to="/register"
+            className="font-semibold text-brand-600 hover:text-brand-700"
+          >
+            Register
+          </Link>
+        </p>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="relative">
+          <FormInput
+            name="email"
+            control={control}
+            label="Email"
+            required
+            placeholder="you@example.com"
+            type="email"
           />
-          <h1 className="text-xl font-semibold text-slate-800">
-            Personal Expense Tracker
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Sign in to manage your finances
-          </p>
         </div>
-
-        <div className="card-surface p-6">
-          {error && (
-            <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
-              {getErrorMessage(error)}
-            </div>
-          )}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="relative">
-              <FormInput
-                name="email"
-                control={control}
-                label="Email"
-                required
-                placeholder="you@example.com"
-                type="email"
-              />
-            </div>
-            <FormPasswordInput
-              name="password"
-              control={control}
-              label="Password"
-              required
-              placeholder="Enter your password"
-            />
-            <Button type="submit" className="w-full" loading={isLoading}>
-              Sign In
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-slate-500">
-            Don't have an account?{" "}
-            <Link
-              to="/register"
-              className="font-medium text-brand-600 hover:text-brand-700"
-            >
-              Register
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+        <FormPasswordInput
+          name="password"
+          control={control}
+          label="Password"
+          required
+          placeholder="Enter your password"
+        />
+        <Button type="submit" className="w-full" loading={isLoading}>
+          Sign In
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }
