@@ -18,7 +18,7 @@ function toRequestBody(body: TransactionRequest | UpdateTransactionRequest) {
   for (const [key, value] of Object.entries(fields)) {
     if (value === undefined) continue;
     if (Array.isArray(value)) {
-      for (const item of value) formData.append(`${key}[]`, String(item));
+      for (const item of value) formData.append(key, String(item));
     } else {
       formData.append(key, String(value));
     }

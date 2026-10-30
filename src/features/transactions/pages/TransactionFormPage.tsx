@@ -50,6 +50,7 @@ export function TransactionFormPage() {
             ? "Update the details of your transaction"
             : "Record a new income or expense"
         }
+        isBackButton={true}
       />
       <TransactionForm initialData={transaction} />
     </div>

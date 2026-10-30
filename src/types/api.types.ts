@@ -212,6 +212,7 @@ export interface BackendTransactionFile {
   filePath: string;
   mimeType: string;
   fileSize: number;
+  signedUrl?: string;
 }
 
 export interface BackendTransactionResponse {

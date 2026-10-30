@@ -25,42 +25,32 @@ export function AuthLayout({
   footer,
 }: AuthLayoutProps) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-blue-50 via-slate-50 to-white px-4 py-10">
-      <div className="pointer-events-none absolute -left-24 top-0 h-96 w-96 rounded-full bg-brand-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-sky-400/20 blur-3xl" />
-
-      {/* floating chips (desktop only) */}
-      <div className="absolute left-[10%] top-[22%] hidden items-center gap-2 rounded-xl border border-white bg-white/80 px-4 py-3 shadow-lg backdrop-blur xl:flex">
-        <BarChart3 size={18} className="text-brand-600" />
-        <span className="text-sm font-medium text-slate-700">
-          Monthly report ready
-        </span>
-      </div>
-      <div className="absolute bottom-[20%] right-[10%] hidden items-center gap-2 rounded-xl border border-white bg-white/80 px-4 py-3 shadow-lg backdrop-blur xl:flex">
-        <Wallet size={18} className="text-emerald-600" />
-        <span className="text-sm font-medium text-slate-700">
-          Saved 18% this month
-        </span>
-      </div>
-
-      <div className="relative w-full max-w-md">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <Logo className="mb-4 h-14 w-14" />
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            {title}
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-500">{subtitle}</p>
-        </div>
-        <div className="rounded-2xl border border-white/70 bg-white/80 p-7 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5 backdrop-blur-xl">
+    <div
+      className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10"
+      style={{
+        backgroundImage:
+          "radial-gradient(circle, rgb(203 213 225) 1px, transparent 1px)",
+        backgroundSize: "22px 22px",
+      }}
+    >
+      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl shadow-slate-900/10 ring-1 ring-slate-200">
+        <div className="h-1.5 bg-gradient-to-r from-brand-700 via-brand-600 to-sky-400" />
+        <div className="p-8">
+          <div className="mb-7 flex items-center gap-4">
+            <Logo className="h-12 w-12 shrink-0" />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                {title}
+              </h1>
+              <p className="text-sm text-slate-500">{subtitle}</p>
+            </div>
+          </div>
           {error}
           {children}
-          <div className="mt-6 text-center text-sm text-slate-500">
+          <div className="mt-6 border-t border-slate-100 pt-5 text-center text-sm text-slate-500">
             {footer}
           </div>
         </div>
-        <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-slate-400">
-          <ShieldCheck size={14} /> Secured with encryption
-        </p>
       </div>
     </div>
   );

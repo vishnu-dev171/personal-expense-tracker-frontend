@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import { Eye, FileText, Trash2 } from "lucide-react";
 import {
   FormInput,
   FormNumberInput,
@@ -29,9 +30,16 @@ import {
 import { useToast } from "@/components/feedback/Toast";
 import { toISODate } from "@/utils/format";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { Modal } from "@/components/ui/Modal";
 
 interface TransactionFormProps {
   initialData?: BackendTransactionResponse;
+}
+
+interface FilePreview {
+  name: string;
+  mimeType: string;
+  url: string;
 }
 
 export function TransactionForm({ initialData }: TransactionFormProps) {
@@ -40,6 +48,8 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
   const { currency, defaultTransactionType, profileLoaded } =
     useUserPreferences();
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [deleteFileIds, setDeleteFileIds] = useState<string[]>([]);
+  const [previewFile, setPreviewFile] = useState<FilePreview | null>(null);
   const {
     data: categoryResponse,
     isLoading: isLoadingCategories,
@@ -95,11 +105,21 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
   ]);
 
   const selectedType = watch("type");
+  const existingFiles = initialData?.files ?? [];
+  const remainingExistingFiles = existingFiles.filter(
+    (file) => !deleteFileIds.includes(file.fileId),
+  );
   const availableCategories = categories.filter(
     (category) =>
       category.type === (selectedType === "income" ? "INCOME" : "EXPENSE") &&
       category.status === "ACTIVE",
   );
+
+  useEffect(() => {
+    if (!previewFile?.url.startsWith("blob:")) return;
+    const objectUrl = previewFile.url;
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [previewFile]);
 
   async function onSubmit(data: TransactionFormData) {
     const payload = {
@@ -118,6 +138,7 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
         await updateTransaction({
           ...payload,
           transactionId: initialData.transactionId,
+          deleteFileIds,
         }).unwrap();
         toast({ title: "Transaction updated", variant: "success" });
       } else {
@@ -141,7 +162,8 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div className="card-surface p-5 space-y-4">
         <div>
           <label className="text-sm font-medium text-slate-700">
@@ -229,48 +251,115 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
           rows={3}
         />
 
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-          Receipt attachments
+        <div className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+          <label htmlFor="transaction-attachments">Receipt attachments</label>
           <input
+            id="transaction-attachments"
             type="file"
             multiple
             accept="image/*,application/pdf"
             disabled={isCreating || isUpdating}
             onChange={(event) => {
               const selectedFiles = Array.from(event.target.files ?? []);
-              if (selectedFiles.length > 5) {
+              const availableSlots =
+                5 - remainingExistingFiles.length - attachments.length;
+              if (selectedFiles.length > availableSlots) {
                 toast({
                   title: "You can attach up to 5 files",
                   variant: "error",
                 });
-                event.target.value = "";
-                setAttachments([]);
-                return;
+              } else {
+                setAttachments((current) => [...current, ...selectedFiles]);
               }
-              setAttachments(selectedFiles);
+              event.target.value = "";
             }}
             className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100"
           />
           <span className="text-xs font-normal text-slate-400">
             Up to 5 images or PDF files.
           </span>
-          {initialData?.files.map((file) => (
-            <span
+          {remainingExistingFiles.map((file) => (
+            <div
               key={file.fileId}
-              className="text-xs font-normal text-slate-500"
+              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2"
             >
-              Existing: {file.originalName}
-            </span>
+              <span className="flex min-w-0 items-center gap-2 text-xs font-normal text-slate-600">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate">{file.originalName}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  aria-label={`Preview ${file.originalName}`}
+                  disabled={!file.signedUrl || isCreating || isUpdating}
+                  onClick={() =>
+                    file.signedUrl &&
+                    setPreviewFile({
+                      name: file.originalName,
+                      mimeType: file.mimeType,
+                      url: file.signedUrl,
+                    })
+                  }
+                  className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${file.originalName}`}
+                  disabled={isCreating || isUpdating}
+                  onClick={() =>
+                    setDeleteFileIds((current) => [...current, file.fileId])
+                  }
+                  className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </span>
+            </div>
           ))}
-          {attachments.map((file) => (
-            <span
-              key={`${file.name}-${file.lastModified}`}
-              className="text-xs font-normal text-slate-500"
+          {attachments.map((file, index) => (
+            <div
+              key={`${file.name}-${file.lastModified}-${file.size}-${index}`}
+              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2"
             >
-              Selected: {file.name}
-            </span>
+              <span className="flex min-w-0 items-center gap-2 text-xs font-normal text-slate-600">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate">{file.name}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  aria-label={`Preview ${file.name}`}
+                  disabled={isCreating || isUpdating}
+                  onClick={() =>
+                    setPreviewFile({
+                      name: file.name,
+                      mimeType: file.type,
+                      url: URL.createObjectURL(file),
+                    })
+                  }
+                  className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${file.name}`}
+                  disabled={isCreating || isUpdating}
+                  onClick={() =>
+                    setAttachments((current) =>
+                      current.filter((_, fileIndex) => fileIndex !== index),
+                    )
+                  }
+                  className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </span>
+            </div>
           ))}
-        </label>
+        </div>
       </div>
 
       <div className="flex gap-3">
@@ -288,6 +377,31 @@ export function TransactionForm({ initialData }: TransactionFormProps) {
           {isEdit ? "Update Transaction" : "Create Transaction"}
         </Button>
       </div>
-    </form>
+      </form>
+      <Modal
+        open={previewFile !== null}
+        onClose={() => setPreviewFile(null)}
+        title={previewFile?.name}
+        size="lg"
+      >
+        {previewFile?.mimeType.startsWith("image/") ? (
+          <img
+            src={previewFile.url}
+            alt={previewFile.name}
+            className="mx-auto max-h-[60vh] max-w-full object-contain"
+          />
+        ) : previewFile?.mimeType === "application/pdf" ? (
+          <iframe
+            src={previewFile.url}
+            title={previewFile.name}
+            className="h-[60vh] w-full"
+          />
+        ) : (
+          <p className="text-sm text-slate-500">
+            A preview is not available for this file type.
+          </p>
+        )}
+      </Modal>
+    </>
   );
 }

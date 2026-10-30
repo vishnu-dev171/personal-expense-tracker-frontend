@@ -23,7 +23,10 @@ export function AppLayout() {
   const { data } = useGetUserProfileQuery();
   const [logoutUser, { isLoading: isLoggingOut }] = useLogoutUserMutation();
 
-  const title = titleMap[location.pathname] ?? "Dashboard";
+  const titleKey =
+    Object.keys(titleMap).find((item) => location.pathname.includes(item)) ??
+    "/dashboard";
+  const title = titleMap[titleKey];
 
   async function handleLogout() {
     try {
